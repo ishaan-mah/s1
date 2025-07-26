@@ -11,6 +11,8 @@ gradient_accumulation_steps=1 # requires more GPU memory
 max_steps=-1
 gpu_count=$(nvidia-smi -L | wc -l)
 push_to_hub=false
+export WANDB_MODE=offline
+export WANDB_DISABLED=true
 
 torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     train/sft.py \
