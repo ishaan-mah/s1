@@ -8,7 +8,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 from transformers.utils import is_torch_xpu_available
 os.environ["HF_USE_AUTO_TP"] = "1"
 from datasets import load_from_disk
-
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 # ==== Patch: shared cache + output dirs ====
 CACHE_DIR  = "/shared/share_mala/Ishaan/cache/qwen-s1"
 OUTPUT_DIR = "/shared/share_mala/Ishaan/finetuned_model/qwen-s1"
@@ -100,8 +101,10 @@ def train():
     args.deepspeed = "train/ds_config.json"
     trainer = trl.SFTTrainer(
         model,
-        train_dataset=dataset['train'],
-        eval_dataset=dataset['test'] if 'test' in dataset else dataset['train'],
+        train_dataset=dataset,
+        eval_dataset=None,
+        # train_dataset=dataset['train'],
+        # eval_dataset=dataset['test'] if 'test' in dataset else dataset['train'],
         args=args,
         data_collator=collator
     )
