@@ -7,6 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 from transformers.utils import is_torch_xpu_available
 os.environ["HF_USE_AUTO_TP"] = "1"
+from datasets import load_from_disk
 
 # ==== Patch: shared cache + output dirs ====
 CACHE_DIR  = "/shared/share_mala/Ishaan/cache/qwen-s1"
@@ -67,7 +68,8 @@ def train():
         )
 
     # load dataset (will use HF_DATASETS_CACHE)
-    dataset = load_dataset(config.train_file_path)
+    # dataset = load_dataset(config.train_file_path)
+    dataset = load_from_disk(config.train_file_path)
 
     # tokenizer setup (force cache_dir)
     tokenizer = transformers.AutoTokenizer.from_pretrained(
