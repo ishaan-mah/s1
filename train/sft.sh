@@ -1,7 +1,7 @@
 # Reference Running: bash train/sft.sh
 # {'train_runtime': 5268.8407, 'train_samples_per_second': 0.949, 'train_steps_per_second': 0.119, 'train_loss': 0.1172730620391667, 'epoch': 5.0}
 # Use a high, likely-free port
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5
+# export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5
 export MASTER_PORT=39501
 export TRITON_CACHE_DIR="/tmp/$USER/triton-cache"
 export HF_USE_AUTO_TP=1
@@ -17,7 +17,7 @@ max_steps=-1
 gpu_count=$(nvidia-smi -L | wc -l)
 push_to_hub=false
 
-deepspeed --master_port ${MASTER_PORT} --num_gpus=6 train/sft_im.py \
+deepspeed --master_port ${MASTER_PORT} --num_gpus=8 train/sft_im.py \
     --deepspeed train/ds_config.json \
     --block_size=32768 \
     --per_device_train_batch_size=1 \
