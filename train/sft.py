@@ -5,7 +5,7 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-from datasets import load_dataset, concatenate_datasets, DatasetDict
+from datasets import load_dataset, concatenate_datasets, DatasetDict, load_from_disk
 import transformers
 import trl
 
@@ -15,7 +15,7 @@ class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-32B-Instruct")
     block_size: int = field(default=32768)
     wandb_project: Optional[str] = field(default="s1")
-    wandb_entity: Optional[str] = field(default="hashimoto-group")
+    wandb_entity: Optional[str] = field(default="ishaanmaheshwari2001-columbia-university")
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
     dagger: bool = field(default=False)
     cache_dir: Optional[str] = field(default="/shared/share_mala/Ishaan/cache/qwen-s1")
@@ -42,7 +42,7 @@ def train():
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, cache_dir=config.cache_dir)
 
-    dataset = load_dataset(config.train_file_path)
+    dataset = load_from_disk(config.train_file_path)
 
     # setting up trainer
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.model_name, use_fast=True, cache_dir=config.cache_dir)
@@ -70,8 +70,10 @@ def train():
     args.max_seq_length = config.block_size
     trainer = trl.SFTTrainer(
         model,
-        train_dataset=dataset['train'],
-        eval_dataset=dataset['test'] if 'test' in dataset else dataset['train'],
+        # train_dataset=dataset['train'],
+        # eval_dataset=dataset['test'] if 'test' in dataset else dataset['train'],
+        train_dataset=dataset,
+        eval_dataset=dataset,
         args=args,
         data_collator=collator
     )

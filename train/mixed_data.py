@@ -2,7 +2,6 @@ from datasets import load_dataset, Dataset, concatenate_datasets
 import random
 import numpy as np
 from pgmpy.models import DiscreteBayesianNetwork
-from networkx import fast_gnp_random_graph
 import networkx as nx
 import json
 import os
@@ -81,7 +80,7 @@ def format_trace(query_type, X, Y, Z, edges, answer):
         ]
     elif query_type == "descendant":
         steps = [
-            f"If a directed path {X} -> ... -> {Z} exists and {X} is not {Z}, then {Z} is an descendant of {X}."
+            f"If a directed path {X} -> ... -> {Z} exists and {X} is not {Z}, then {Z} is a descendant of {X}."
         ]
     elif query_type == "dependent":
         steps = [
@@ -105,45 +104,65 @@ def generate_query(model, seed, query_type):
     X, Y, Z = random.sample(nodes, 3)
     edges = list(model.edges())
     prompt_prefix = f"Given the DAG with edges {edges}, "
+    metadata = f"dag_seed={seed}|query_type={query_type}"
+
     if query_type == "confounder":
         answer = int(is_confounder(model, Z, X, Y))
-        question = f"is {Z} a confounder for {X} and {Y}?"
+        question = f"Is {Z} a confounder for {X} and {Y}?"
     elif query_type == "parent":
         answer = int((Z, X) in model.edges())
-        question = f"is {Z} a parent of {X}?"
+        question = f"Is {Z} a parent of {X}?"
     elif query_type == "child":
         answer = int((X, Z) in model.edges())
-        question = f"is {Z} a child of {X}?"
+        question = f"Is {Z} a child of {X}?"
     elif query_type == "conditional independence":
         answer = int(not model.is_dconnected(X, Y, observed=[Z]))
-        question = f"are {X} and {Y} conditionally independent given {Z}?"
+        question = f"Are {X} and {Y} conditionally independent given {Z}?"
     elif query_type == "ancestor":
         answer = int(nx.has_path(model, Z, X) and Z != X)
-        question = f"is {Z} an ancestor of {X}?"
+        question = f"Is {Z} an ancestor of {X}?"
     elif query_type == "descendant":
         answer = int(nx.has_path(model, X, Z) and X != Z)
-        question = f"is {Z} a descendant of {X}?"
+        question = f"Is {Z} a descendant of {X}?"
     elif query_type == "dependent":
         answer = int(model.is_dconnected(X, Y, observed=[]))
-        question = f"are {X} and {Y} dependent without conditioning?"
+        question = f"Are {X} and {Y} dependent without conditioning?"
     elif query_type == "independent":
         answer = int(not model.is_dconnected(X, Y, observed=[]))
-        question = f"are {X} and {Y} marginally independent?"
+        question = f"Are {X} and {Y} marginally independent?"
     elif query_type == "collider":
         answer = int((X, Z) in model.edges() and (Y, Z) in model.edges())
-        question = f"is {Z} a collider on the path between {X} and {Y}?"
+        question = f"Is {Z} a collider on the path between {X} and {Y}?"
     elif query_type == "mediator":
         answer = int((X, Z) in model.edges() and (Z, Y) in model.edges())
-        question = f"is {Z} a mediator from {X} to {Y}?"
+        question = f"Is {Z} a mediator from {X} to {Y}?"
     else:
         return None
+
     answer_text = "Yes" if answer else "No"
     reasoning = format_trace(query_type, X, Y, Z, edges, answer_text)
-    text = f"<|im_start|>user\n{prompt_prefix}{question}\n\nPlease explain your reasoning step-by-step.\n<|im_start|>assistant\n{reasoning}"
+    full_solution = f"Solution:\n{reasoning}"
+
     return {
-        "text": text,
-        "source_type": "dag",
-        "cot_type": "cot"
+        "question": f"{prompt_prefix}{question}",
+        "solution": answer_text,
+        "cot_type": "causal",
+        "source_type": "dag_synthetic",
+        "metadata": metadata,
+        "cot": None,
+        "thinking_trajectories": [reasoning],
+        "attempt": full_solution,
+        "text": (
+            "<|im_start|>system\n"
+            "You are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\n"
+            f"<|im_start|>user\n{prompt_prefix}{question}<|im_end|>\n"
+            "<|im_start|>assistant\n"
+            "<|im_start|>think\n"
+            f"{reasoning.rsplit('Answer:', 1)[0].strip()}\n"
+            "<|im_start|>answer\n"
+            f"Answer: {answer_text}<|im_end|>"
+        )
+
     }
 
 def generate_causal_query_dataset(n_samples=1000, edge_prob=0.3, seed=42):
@@ -164,15 +183,8 @@ def generate_causal_query_dataset(n_samples=1000, edge_prob=0.3, seed=42):
 
 def create_and_save_dataset():
     print("🔹 Loading 1000 S1K examples...")
-    s1k_raw = load_dataset("simplescaling/s1K", split="train[:1000]")
+    s1k_raw = load_dataset("simplescaling/s1K_tokenized", split="train[:1000]")
     s1k_list = s1k_raw.to_list()
-    for ex in s1k_list:
-        ex["source_type"] = "s1k"
-        ex["cot_type"] = ex.get("cot_type", "cot")
-        # Construct the 'text' field like the causal format
-        question = ex.get("question", "")
-        cot = ex.get("cot") or ex.get("thinking_trajectories", [""])[0]
-        ex["text"] = f"<|im_start|>user\n{question}\n\nPlease explain your reasoning step-by-step.\n<|im_start|>assistant\n{cot}"
     s1k_dataset = Dataset.from_list(s1k_list)
 
     print("🔹 Generating 1000 causal DAG reasoning examples...")
@@ -185,7 +197,7 @@ def create_and_save_dataset():
     print(f"💾 Saving to {SAVE_PATH}")
     mixed_ds.save_to_disk(SAVE_PATH)
 
-    json_path = os.path.join(SAVE_PATH, "s1k_mixed_reasoning.json")
+    json_path = os.path.join(SAVE_PATH, "s1k_mixed_tokenized.json")
     with open(json_path, "w") as f:
         for ex in mixed_ds:
             json.dump(ex, f)
