@@ -1,0 +1,3 @@
+original run file with params changed for 8 gpus: ./train/sft.sh
+eval: lm_eval   --model vllm   --model_args pretrained=simplescaling/s1-32B,tokenizer=Qwen/Qwen2.5-32B-Instruct,dtype=float16,tensor_parallel_size=4   --tasks aime24_nofigures   --batch_size auto   --apply_chat_template   --output_path results/s1_base_aime24.json   --log_samples   --gen_kwargs max_gen_toks=32768
+Ishaan sft: ./train/sft_im.sh
