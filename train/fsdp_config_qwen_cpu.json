@@ -1,4 +1,7 @@
 {
-    "transformer_layer_cls_to_wrap": "Qwen2DecoderLayer",
-    "cpu_ram_efficient_loading": true
+  "transformer_layer_cls_to_wrap": "Qwen2DecoderLayer",
+  "cpu_ram_efficient_loading": true,
+
+  "offload_params":  { "device": "cpu", "pin_memory": true },
+  "offload_optim":   { "device": "cpu", "pin_memory": true }
 }

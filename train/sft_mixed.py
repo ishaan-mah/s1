@@ -35,12 +35,12 @@ def train():
         # Removed "low_cpu_mem_usage": True, for 70B, since by default we are in FSDP,
         # it's more efficient to do  "cpu_ram_efficient_loading": true, in fsdp_config.json
         kwargs = {"device_map": "auto", "torch_dtype": "auto",
-                  "attn_implementation": "flash_attention_2", "use_cache": True}
+                  "attn_implementation": "flash_attention_2", "use_cache": False}
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, cache_dir=config.cache_dir, **kwargs)
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, cache_dir=config.cache_dir)
 
-    dataset = load_dataset(config.train_file_path)
+    dataset = load_from_disk(config.train_file_path)
 
     # setting up trainer
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.model_name, use_fast=True, cache_dir=config.cache_dir)
@@ -68,8 +68,8 @@ def train():
     args.max_seq_length = config.block_size
     trainer = trl.SFTTrainer(
         model,
-        train_dataset=dataset['train'],
-        eval_dataset=dataset['test'] if 'test' in dataset else dataset['train'],
+        train_dataset=dataset,
+        eval_dataset=dataset,
         args=args,
         data_collator=collator
     )
@@ -82,3 +82,4 @@ def train():
 
 if __name__ == "__main__":
     train()
+
